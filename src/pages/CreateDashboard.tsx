@@ -45,13 +45,36 @@ const CreateDashboard = () => {
     setIsLoading(true);
 
     try {
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        navigate("/login");
+        return;
+      }
+
       // Validate Google Sheets URL
       if (formData.sheets_url && !formData.sheets_url.includes('docs.google.com/spreadsheets')) {
         throw new Error("URL inválida. Use uma URL do Google Sheets válida.");
       }
 
-      // Simulated API call - replace with actual endpoint
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const response = await fetch('/api/dashboards', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (response.status === 401) {
+          localStorage.removeItem("auth_token");
+          navigate("/login");
+          return;
+        }
+        throw new Error(data.error || 'Erro ao criar dashboard');
+      }
       
       toast({
         title: "Dashboard criado com sucesso!",
@@ -59,10 +82,10 @@ const CreateDashboard = () => {
       });
       
       navigate("/dashboards");
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: "Erro ao criar dashboard",
-        description: error instanceof Error ? error.message : "Erro desconhecido",
+        description: error.message || "Erro desconhecido",
         variant: "destructive",
       });
     } finally {

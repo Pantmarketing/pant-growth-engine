@@ -35,31 +35,38 @@ const DashboardsList = () => {
       return;
     }
     
-    // Simulated data - replace with actual API call
-    setTimeout(() => {
-      setDashboards([
-        {
-          id: 1,
-          name: "Cliente ABC - Consultoria",
-          business_model: "lead_para_vendedor",
-          created_at: "2024-01-15"
-        },
-        {
-          id: 2,
-          name: "E-commerce XYZ",
-          business_model: "venda_direta",
-          created_at: "2024-01-20"
-        },
-        {
-          id: 3,
-          name: "Quiz Marketing - Produto Digital",
-          business_model: "quiz",
-          created_at: "2024-01-25"
+    const fetchDashboards = async () => {
+      try {
+        const response = await fetch('/api/dashboards', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.removeItem("auth_token");
+            navigate("/login");
+            return;
+          }
+          throw new Error('Erro ao carregar dashboards');
         }
-      ]);
-      setIsLoading(false);
-    }, 1000);
-  }, [navigate]);
+
+        const data = await response.json();
+        setDashboards(data);
+      } catch (error: any) {
+        toast({
+          title: "Erro",
+          description: error.message || "Erro ao carregar dashboards",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboards();
+  }, [navigate, toast]);
 
   const getBusinessModelLabel = (model: string) => {
     const models = {

@@ -61,67 +61,80 @@ const PublicDashboard = () => {
     const token = localStorage.getItem(`public_auth_${id}`);
     if (token) {
       setIsAuthenticated(true);
-    }
-    
-    // Load dashboard data
-    setTimeout(() => {
-      setDashboard({
-        id: 1,
-        name: "Cliente ABC - Consultoria",
-        business_model: "lead_para_vendedor",
-        data: [
-          {
-            date: "2024-01-01",
-            investment: 1500,
-            impressions: 15000,
-            clicks: 450,
-            page_views: 420,
-            leads: 85,
-            conversations: 42,
-            meetings: 28,
-            negotiations: 15,
-            sales_page_views: 0,
-            checkouts: 0,
-            sales: 8,
-            revenue: 12000
-          },
-          {
-            date: "2024-01-02",
-            investment: 1800,
-            impressions: 18000,
-            clicks: 540,
-            page_views: 510,
-            leads: 102,
-            conversations: 51,
-            meetings: 34,
-            negotiations: 18,
-            sales_page_views: 0,
-            checkouts: 0,
-            sales: 10,
-            revenue: 15000
-          }
-        ]
-      });
+      loadDashboardData(token);
+    } else {
       setIsLoading(false);
-    }, 1000);
+    }
   }, [id]);
+
+  const loadDashboardData = async (token: string) => {
+    try {
+      const startDate = selectedPeriod.from?.toISOString().split('T')[0];
+      const endDate = selectedPeriod.to?.toISOString().split('T')[0];
+      
+      const response = await fetch(`/api/public/dashboard/${id}?startDate=${startDate}&endDate=${endDate}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) {
+          localStorage.removeItem(`public_auth_${id}`);
+          setIsAuthenticated(false);
+          return;
+        }
+        throw new Error('Erro ao carregar dashboard');
+      }
+
+      const data = await response.json();
+      setDashboard(data);
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao carregar dashboard",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Effect to reload data when period changes
+  useEffect(() => {
+    if (isAuthenticated) {
+      const token = localStorage.getItem(`public_auth_${id}`);
+      if (token) {
+        loadDashboardData(token);
+      }
+    }
+  }, [selectedPeriod, isAuthenticated, id]);
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     try {
-      // Simulated authentication - replace with actual API call
-      if (password === "cliente123") {
-        localStorage.setItem(`public_auth_${id}`, "mock_jwt_token");
-        setIsAuthenticated(true);
-        toast({
-          title: "Acesso autorizado",
-          description: "Bem-vindo ao seu dashboard de performance!",
-        });
-      } else {
-        throw new Error("Senha incorreta");
+      const response = await fetch(`/api/public/auth/${id}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Senha incorreta');
       }
-    } catch (error) {
+
+      localStorage.setItem(`public_auth_${id}`, data.token);
+      setIsAuthenticated(true);
+      toast({
+        title: "Acesso autorizado",
+        description: "Bem-vindo ao seu dashboard de performance!",
+      });
+    } catch (error: any) {
       toast({
         title: "Erro na autenticação",
         description: "Senha incorreta. Tente novamente.",

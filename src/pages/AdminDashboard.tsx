@@ -84,71 +84,79 @@ const AdminDashboard = () => {
       return;
     }
 
-    // Simulated data - replace with actual API call
-    setTimeout(() => {
-      setDashboard({
-        id: 1,
-        name: "Cliente ABC - Consultoria",
-        business_model: "lead_para_vendedor",
-        data: [
-          {
-            date: "2024-01-01",
-            investment: 1500,
-            impressions: 15000,
-            clicks: 450,
-            page_views: 420,
-            leads: 85,
-            conversations: 42,
-            meetings: 28,
-            negotiations: 15,
-            sales_page_views: 0,
-            checkouts: 0,
-            sales: 8,
-            revenue: 12000
+    const fetchDashboard = async () => {
+      try {
+        const startDate = selectedPeriod.from?.toISOString().split('T')[0];
+        const endDate = selectedPeriod.to?.toISOString().split('T')[0];
+        
+        const response = await fetch(`/api/dashboard/${id}?startDate=${startDate}&endDate=${endDate}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
           },
-          {
-            date: "2024-01-02",
-            investment: 1800,
-            impressions: 18000,
-            clicks: 540,
-            page_views: 510,
-            leads: 102,
-            conversations: 51,
-            meetings: 34,
-            negotiations: 18,
-            sales_page_views: 0,
-            checkouts: 0,
-            sales: 10,
-            revenue: 15000
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            localStorage.removeItem("auth_token");
+            navigate("/login");
+            return;
           }
-        ],
-        operationalCosts: [
-          {
-            id: 1,
-            description: "Equipe de vendas",
-            amount: 5000,
-            date_from: "2024-01-01",
-            date_to: "2024-01-31"
-          }
-        ]
-      });
-      setIsLoading(false);
-    }, 1000);
-  }, [id, navigate]);
+          throw new Error('Erro ao carregar dashboard');
+        }
+
+        const data = await response.json();
+        setDashboard(data);
+      } catch (error: any) {
+        toast({
+          title: "Erro",
+          description: error.message || "Erro ao carregar dashboard",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, [id, navigate, selectedPeriod]);
 
   const handleImportSheets = async () => {
-    toast({
-      title: "Importação iniciada",
-      description: "Os dados estão sendo importados da planilha...",
-    });
-    
-    // Simulated import
-    setTimeout(() => {
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+
+    try {
+      toast({
+        title: "Importação iniciada",
+        description: "Os dados estão sendo importados da planilha...",
+      });
+
+      const response = await fetch(`/api/dashboard/${id}/import-sheets`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao importar dados');
+      }
+
       toast({
         title: "Importação concluída",
-        description: "Dados atualizados com sucesso!",
+        description: `${data.imported} registros importados com sucesso!`,
       });
-    }, 2000);
+
+      // Recarregar dados
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: "Erro na importação",
+        description: error.message || "Erro ao importar dados",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleAddCost = async () => {
@@ -161,13 +169,47 @@ const AdminDashboard = () => {
       return;
     }
 
-    toast({
-      title: "Custo adicionado",
-      description: `Custo "${newCost.description}" foi adicionado com sucesso.`,
-    });
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
 
-    setNewCost({ description: "", amount: "", date_from: "", date_to: "" });
-    setShowAddCost(false);
+    try {
+      const response = await fetch(`/api/dashboard/${id}/costs`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          description: newCost.description,
+          amount: parseFloat(newCost.amount),
+          date_from: newCost.date_from || new Date().toISOString().split('T')[0],
+          date_to: newCost.date_to || new Date().toISOString().split('T')[0],
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao adicionar custo');
+      }
+
+      toast({
+        title: "Custo adicionado",
+        description: `Custo "${newCost.description}" foi adicionado com sucesso.`,
+      });
+
+      setNewCost({ description: "", amount: "", date_from: "", date_to: "" });
+      setShowAddCost(false);
+      
+      // Recarregar dados
+      window.location.reload();
+    } catch (error: any) {
+      toast({
+        title: "Erro",
+        description: error.message || "Erro ao adicionar custo",
+        variant: "destructive",
+      });
+    }
   };
 
   if (isLoading) {

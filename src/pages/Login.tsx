@@ -19,21 +19,33 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // Simulated login - replace with actual API call
-      if (username === "admin" && password === "admin") {
-        localStorage.setItem("auth_token", "mock_jwt_token");
-        toast({
-          title: "Login realizado com sucesso",
-          description: "Redirecionando para o painel...",
-        });
-        navigate("/dashboards");
-      } else {
-        throw new Error("Credenciais inválidas");
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username,
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro no login');
       }
-    } catch (error) {
+
+      localStorage.setItem("auth_token", data.token);
+      toast({
+        title: "Login realizado com sucesso",
+        description: "Redirecionando para o painel...",
+      });
+      navigate("/dashboards");
+    } catch (error: any) {
       toast({
         title: "Erro no login",
-        description: "Usuário ou senha incorretos",
+        description: error.message || "Usuário ou senha incorretos",
         variant: "destructive",
       });
     } finally {
