@@ -1,8 +1,13 @@
 name = "pant-growth-engine"
+main = "src/worker/index.ts"
 pages_build_output_dir = "dist"
 compatibility_date = "2024-07-25"
 
 [[d1_databases]]
-binding = "DB" # Nome que o código usará para acessar o banco
+binding = "DB"
 database_name = "pant-growth-database"
 database_id = "d590a31b-1232-4e46-a5d6-579dfbd9e1a1"
+
+[env.production]
+route = "dash.pantmarketing.com/*"
+zone_id = "3e22b78f0b7d5b90084fb4244b87ca9f"
